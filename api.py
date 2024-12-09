@@ -19,6 +19,10 @@ class ProxyServer:
         # 注册路由
         self.app.middleware("http")(self.proxy_middleware)
 
+    async def update_group_backends(self):
+        for group in self.groups.values():
+            await self.select_healthy_backend(group)
+
     async def proxy_middleware(self, request: Request, call_next):
         # 获取请求路径
         path = request.url.path
@@ -34,17 +38,13 @@ class ProxyServer:
             return await call_next(request)
             
         # 获取当前组的活跃后端
-        backend = self.group_backends.get(target_group.path)
-        if not backend:
-            # 如果没有活跃后端，选择一个健康的后端
-            await self.select_healthy_backend(target_group)
-            backend = self.group_backends.get(target_group.path)
-            if not backend:
-                return {"error": "No healthy backend available"}
+        if not target_group.current_backend:
+            # 如果没有当前后端,选择第一个健康的后端作为当前后端
+            return await call_next(request)
 
         # 构建目标URL
         target_path = path[len(target_group.path):]  # 移除组路径前缀
-        target_url = f"{backend.url}{target_path}"
+        target_url = f"{target_group.current_backend.url}{target_path}"
         
         # 转发请求
         async with httpx.AsyncClient() as client:
@@ -63,28 +63,26 @@ class ProxyServer:
                     headers=dict(response.headers)
                 )
             except Exception as e:
-                # 标记当前后端为不健康
-                self.backend_health[backend.url] = False
-                # 尝试切换到其他健康的后端
-                await self.select_healthy_backend(target_group)
+                # 当前后端出错,清空当前后端
+                target_group.current_backend = None
                 return {"error": str(e)}
 
     async def select_healthy_backend(self, group: Group):
         """选择一个健康的后端服务"""
         for backend in group.backends:
-            if await self.check_backend_health(backend):
+            if await self.check_backend_health(backend, group.health_check_path):
                 self.group_backends[group.path] = backend
                 return True
         return False
 
-    async def check_backend_health(self, backend: Backend) -> bool:
+    async def check_backend_health(self, backend: Backend, health_check_path: str) -> bool:
         """检查后端健康状态"""
         if self.backend_health[backend.url]:
             return True
             
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.get(f"{backend.url}/health", timeout=5.0)
+                response = await client.get(f"{backend.url}{health_check_path}", timeout=5.0)
                 is_healthy = response.status_code == 200
                 self.backend_health[backend.url] = is_healthy
                 return is_healthy

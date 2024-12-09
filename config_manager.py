@@ -26,11 +26,15 @@ class ConfigManager:
                     id=group_id,
                     path=cls._config[section]['path'],
                     alias=cls._config[section].get('alias', None),
-                    backends=[]
+                    health_check_path=cls._config[section]['health_check_path'],
+                    backends=[],
+                    current_backend=None
                 )
                 
                 # 读取该组下的所有后端服务
                 backend_count = int(cls._config[section].get('backend_count', '0'))
+                current_backend_id = cls._config[section].get('current_backend_id', None)
+                
                 for i in range(backend_count):
                     backend_section = f'backend_{group_id}_{i}'
                     if cls._config.has_section(backend_section):
@@ -40,6 +44,10 @@ class ConfigManager:
                             alias=cls._config[backend_section].get('alias', None)
                         )
                         group.backends.append(backend)
+                        
+                        # 如果是当前后端,设置为 current_backend
+                        if current_backend_id and str(backend.id) == current_backend_id:
+                            group.current_backend = backend
                 
                 groups.append(group)
         
@@ -47,20 +55,21 @@ class ConfigManager:
 
     @classmethod
     def save_config(cls, groups: List[Group] = None):
-        # 直接创建新的配置对象
         cls._config = configparser.ConfigParser()
-        cls._is_loaded = True  # 设置加载标志
+        cls._is_loaded = True
         
-        # 保存每个组的信息
         for group in groups:
             group_section = f'group_{group.id}'
             cls._config[group_section] = {
                 'id': str(group.id),
                 'path': group.path,
+                'health_check_path': group.health_check_path,
                 'backend_count': str(len(group.backends))
             }
             if group.alias:
                 cls._config[group_section]['alias'] = group.alias
+            if group.current_backend:
+                cls._config[group_section]['current_backend_id'] = str(group.current_backend.id)
             
             # 保存该组下的所有后端服务
             for i, backend in enumerate(group.backends):
@@ -72,7 +81,6 @@ class ConfigManager:
                 if backend.alias:
                     cls._config[backend_section]['alias'] = backend.alias
         
-        # 写入文件
         cls.save_to_file()
 
     @classmethod

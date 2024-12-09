@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (QMainWindow, QTabWidget, QWidget, QVBoxLayout, 
                            QHBoxLayout, QPushButton, QLabel, QTableWidget,
-                           QDialog, QLineEdit, QFormLayout, QMessageBox)
+                           QDialog, QLineEdit, QFormLayout, QMessageBox, QSizePolicy)
 from PyQt6.QtCore import Qt, QEvent
 from api import ProxyServer
 from models import Group, Backend
@@ -21,15 +21,17 @@ class AddGroupDialog(QDialog):
         
         self.path_input = QLineEdit()
         self.alias_input = QLineEdit()
+        self.health_check_path_input = QLineEdit()
         
         layout.addRow("路径 *:", self.path_input)
         layout.addRow("别名:", self.alias_input)
+        layout.addRow("健康检查路径 *:", self.health_check_path_input)
         
         buttons = QHBoxLayout()
         save_btn = QPushButton("保存")
         cancel_btn = QPushButton("取消")
         
-        save_btn.clicked.connect(self.accept)
+        save_btn.clicked.connect(self.on_save)
         cancel_btn.clicked.connect(self.reject)
         
         buttons.addWidget(save_btn)
@@ -38,10 +40,24 @@ class AddGroupDialog(QDialog):
         
         self.setLayout(layout)
     
+    def on_save(self):
+        # 校验逻辑
+        if not self.path_input.text().strip():
+            QMessageBox.warning(self, "错误", "路径不能为空！")
+            return
+        if not self.health_check_path_input.text().strip():
+            QMessageBox.warning(self, "错误", "健康检查路径不能为空！")
+            return
+        
+        # 校验通过，关闭弹窗
+        self.accept()
+
+
     def get_values(self):
         return {
             'path': self.path_input.text(),
-            'alias': self.alias_input.text()
+            'alias': self.alias_input.text(),
+            'health_check_path': self.health_check_path_input.text()
         }
 
 class MainWindow(QMainWindow):
@@ -58,14 +74,16 @@ class MainWindow(QMainWindow):
         
         # 创建主标签页
         self.tab_widget = QTabWidget()
-        self.tab_widget.setTabBar(CustomTabBar())
-        self.tab_widget.setTabsClosable(True)
+        # self.tab_widget.setTabBar(CustomTabBar())
+        self.tab_widget.setTabsClosable(False)
         self.tab_widget.setMovable(True)
+        self.tab_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         
         # 添加新标签页按钮
         self.add_tab_button = QPushButton("+")
+        self.add_tab_button.setFixedSize(20, 20)
         self.add_tab_button.clicked.connect(self.show_add_group_dialog)
-        self.tab_widget.setCornerWidget(self.add_tab_button)
+        self.tab_widget.setCornerWidget(self.add_tab_button, Qt.Corner.BottomRightCorner)
         
         # 标签页关闭信号
         self.tab_widget.tabCloseRequested.connect(self.close_tab)
@@ -84,15 +102,13 @@ class MainWindow(QMainWindow):
         dialog = AddGroupDialog(self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             values = dialog.get_values()
-            if not values['path']:
-                QMessageBox.warning(self, "错误", "路径不能为空！")
-                return
-                
+
             # 创建新组
             group = Group(
                 id=len(self.proxy_server.groups) + 1,
                 path=values['path'],
                 alias=values['alias'] if values['alias'] else None,
+                health_check_path=values['health_check_path'],
                 backends=[]
             )
             

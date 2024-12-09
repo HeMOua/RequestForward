@@ -196,8 +196,6 @@ class GroupTab(QWidget):
             self.main_window.setWindowTitle(title)
 
     def cell_double_clicked(self, item: QTableWidgetItem):
-        if self.is_loading:
-            return
         self.is_editing = True
         self.set_window_title()
 

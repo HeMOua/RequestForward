@@ -10,4 +10,6 @@ class Group(BaseModel):
     id: int
     path: str
     alias: Optional[str] = None
-    backends: List[Backend] = [] 
+    health_check_path: str
+    backends: List[Backend] = []
+    current_backend: Optional[Backend] = None 

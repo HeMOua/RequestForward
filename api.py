@@ -5,6 +5,10 @@ from models import Group, Backend
 from typing import Dict, Optional
 import asyncio
 from collections import defaultdict
+from setting import DEFAULT_PORT
+import uvicorn
+from fastapi.middleware.cors import CORSMiddleware
+from config_manager import ConfigManager
 
 class ProxyServer:
     def __init__(self):
@@ -15,10 +19,41 @@ class ProxyServer:
         self.groups: Dict[int, Group] = {}
         # 后端健康状态
         self.backend_health: Dict[str, bool] = defaultdict(bool)
+        self.server = None
+        self.port = ConfigManager.get_port()
+        
+        # 添加 CORS 中间件
+        self.app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
         
         # 注册路由
         self.app.middleware("http")(self.proxy_middleware)
-
+        
+        # 启动服务器
+        self.start_server()
+    
+    def start_server(self):
+        """启动服务器"""
+        config = uvicorn.Config(self.app, host="0.0.0.0", port=self.port, log_level="info")
+        self.server = uvicorn.Server(config)
+        asyncio.create_task(self.server.serve())
+    
+    async def stop_server(self):
+        """停止服务器"""
+        if self.server:
+            await self.server.shutdown()
+    
+    async def restart_server(self, new_port: int):
+        """重启服务器"""
+        await self.stop_server()
+        self.port = new_port
+        self.start_server()
+    
     async def update_group_backends(self):
         for group in self.groups.values():
             await self.select_healthy_backend(group)

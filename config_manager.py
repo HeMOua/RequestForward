@@ -2,6 +2,7 @@ import configparser
 from pathlib import Path
 from typing import List, Dict
 from models import Group, Backend
+from setting import DEFAULT_PORT
 
 class ConfigManager:
     _config = configparser.ConfigParser()
@@ -98,3 +99,23 @@ class ConfigManager:
         if not cls._is_loaded:
             cls.load_config()
         return cls._config
+
+    @classmethod
+    def get_port(cls) -> int:
+        """获取配置的端口号"""
+        if not cls._is_loaded:
+            cls.load_config()
+        
+        if not cls._config.has_section('settings'):
+            return DEFAULT_PORT
+            
+        return int(cls._config.get('settings', 'port', fallback=DEFAULT_PORT))
+    
+    @classmethod
+    def save_port(cls, port: int):
+        """保存端口配置"""
+        if not cls._config.has_section('settings'):
+            cls._config.add_section('settings')
+        
+        cls._config['settings']['port'] = str(port)
+        cls.save_to_file()

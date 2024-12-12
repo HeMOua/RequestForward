@@ -1,0 +1,33 @@
+8080:
+  /:
+    alias: 用户服务
+    backends:
+      - url: http://localhost:8001
+        alias: 用户服务1
+      - url: http://localhost:3000
+        alias: 用户服务2
+      - url: http://localhost:3001
+        alias: test
+    current_backend: http://localhost:8001
+  /api/orders:
+    alias: 订单服务
+    backends:
+      - url: http://localhost:9001
+        alias: 订单服务1
+      - url: 阿塞阀
+        alias: 阿萨德饭卡
+    current_backend: http://localhost:9001
+  /api:
+    backends: []
+    current_backend:
+8081:
+  /:
+    alias: 用户服务
+    backends:
+      - url: http://localhost:8001
+        alias: 用户服务1
+      - url: http://localhost:3000
+        alias: 用户服务2
+      - url: http://localhost:3001
+        alias: test
+    current_backend: http://localhost:8001

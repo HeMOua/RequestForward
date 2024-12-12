@@ -4,10 +4,9 @@ from PyQt6.QtCore import Qt
 import httpx
 import asyncio
 
-from models import Backend, Group
-from config_manager import ConfigManager
-from api import ProxyServer
-from utils import get_app_info
+from models.base import Backend, Group
+from proxy.base import ProxyServer
+from utils.base import ConfigManager, get_app_info
 
 class GroupTab(QWidget):
     def __init__(self, parent: QMainWindow, proxy_server: ProxyServer, group: Group):

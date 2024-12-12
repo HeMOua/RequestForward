@@ -1,16 +1,11 @@
-from PyQt6.QtWidgets import (QMainWindow, QTabWidget, QWidget, QVBoxLayout, 
-                           QHBoxLayout, QPushButton, QLabel, QTableWidget,
-                           QDialog, QLineEdit, QFormLayout, QMessageBox, QSizePolicy)
-from PyQt6.QtCore import Qt, QEvent
-from api import ProxyServer
-from models import Group, Backend
+from PyQt6.QtWidgets import (QMainWindow, QTabWidget, QHBoxLayout, QPushButton, QDialog, QLineEdit, QFormLayout, QMessageBox, QSizePolicy)
+from PyQt6.QtCore import Qt
+from proxy.base import ProxyServer
+from models.base import Group
 from ui.tab_content import GroupTab
-from ui.custom_tab import CustomTabBar
-from config_manager import ConfigManager
 from ui.settings_dialog import SettingsDialog
-import uuid
+from utils.base import ConfigManager, get_app_info
 
-from utils import get_app_info
 
 class AddGroupDialog(QDialog):
     def __init__(self, parent=None):
@@ -61,11 +56,13 @@ class AddGroupDialog(QDialog):
             'health_check_path': self.health_check_path_input.text()
         }
 
+
 class MainWindow(QMainWindow):
     def __init__(self, proxy_server: ProxyServer):
         super().__init__()
         self.setObjectName("MainWindow")
         self.proxy_server = proxy_server
+        self.proxys = proxy_server.proxys
         
         self.setWindowTitle(get_app_info())
         self.resize(800, 600)
@@ -98,7 +95,6 @@ class MainWindow(QMainWindow):
         menubar = self.menuBar()
         settings_menu = menubar.addMenu("设置")
         port_action = settings_menu.addAction("端口设置")
-        port_action.triggered.connect(self.show_port_settings)
         about_menu = menubar.addMenu("关于")
     
     def show_add_group_dialog(self):
@@ -153,28 +149,8 @@ class MainWindow(QMainWindow):
         groups = ConfigManager.load_config()
         for group in groups:
             self.add_group_tab(group)
-            self.proxy_server.groups[group.id] = group
     
     def save_config(self):
         groups = list(self.proxy_server.groups.values())
         ConfigManager.save_config(groups)
-    
-    def eventFilter(self, obj, event):
-        if obj == self.tab_widget.tabBar():
-            if event.type() == event.Type.HoverEnter:
-                # 获取鼠标下的标签索引
-                index = self.tab_widget.tabBar().tabAt(event.pos())
-                if index >= 0:
-                    self.tab_widget.setTabsClosable(True)
-            elif event.type() == event.Type.HoverLeave:
-                self.tab_widget.setTabsClosable(False)
-        return super().eventFilter(obj, event)
-    
-    def show_port_settings(self):
-        current_port = ConfigManager.get_port()
-        dialog = SettingsDialog(self, current_port)
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            new_port = dialog.get_port()
-            ConfigManager.save_port(new_port)
-            # 重启 FastAPI 服务器
-            self.proxy_server.restart_server(new_port)
+

@@ -9,5 +9,7 @@
     current_backend: 1
   /mock:
     alias: mock服务
-    backends: []
-    current_backend: null
+    backends:
+    - alias: 测试
+      url: http://localhost:3001
+    current_backend: 0

@@ -1,0 +1,1 @@
+pyinstaller -F -w -i assets/favor.ico main.py -n RequestForward --add-data ".\assets\*;.\assets" --workpath E:/Cache/Temp/build

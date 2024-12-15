@@ -1,10 +1,14 @@
+import sys
 from typing import List
 from pathlib import Path
 
 from models.base import Proxy, Group, Backend
 from utils.base import load_yaml, save_yaml
 
-ROOT = Path(__file__).parents[1]
+if getattr(sys, 'frozen', None):
+    ROOT = Path(sys.executable).parent
+else:
+    ROOT = Path(__file__).parents[1]
 
 
 class ConfigManager:
@@ -15,10 +19,10 @@ class ConfigManager:
     @classmethod
     def load_config(cls):
         cls._is_loaded = True
-        if not cls._config_file.exists():
-            return []
-
-        ConfigManager._config = load_yaml(ROOT / "config/config.yml")
+        if cls._config_file.exists():
+            ConfigManager._config = load_yaml(cls._config_file)
+        else:
+            ConfigManager._config = {}
 
     @classmethod
     def get_config(cls) -> List[Proxy]:

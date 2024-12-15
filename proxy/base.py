@@ -1,4 +1,5 @@
 import logging
+import sys
 
 import httpx
 import asyncio
@@ -30,7 +31,14 @@ class ProxyServer:
     def create_server(self, port: int):
         app = FastAPI()
         app.middleware("http")(self.proxy_middleware)
-        config = uvicorn.Config(app, host="0.0.0.0", port=port)
+        config = uvicorn.Config(
+            app, 
+            host="0.0.0.0", 
+            port=port,
+            log_level="error",  # 只显示错误日志
+            log_config=None,
+            access_log=False
+        )
         server = uvicorn.Server(config)
         self.apps[port] = server
         return server

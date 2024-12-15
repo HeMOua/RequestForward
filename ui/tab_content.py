@@ -1,3 +1,5 @@
+import enum
+
 from PyQt6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -6,16 +8,23 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
-    QMessageBox
+    QMessageBox, QLabel
 )
-from PyQt6.QtGui import QColor, QBrush
-from PyQt6.QtCore import Qt, QMetaObject, QTimer
+from PyQt6.QtGui import QColor, QBrush, QIcon, QMovie
+from PyQt6.QtCore import Qt, QMetaObject, QTimer, QSize
 import asyncio
 from qasync import asyncSlot
 from models.base import Backend, Group
 from proxy.base import ProxyServer
-from utils.base import get_app_info
+from utils.base import get_app_info, ROOT, join_url
 from utils.config import ConfigManager
+
+
+class IconType(str, enum.Enum):
+    SUCCESS = str(ROOT / "assets/success.png")
+    WAIT = str(ROOT / "assets/wait.png")
+    LOADING = str(ROOT / "assets/loading.gif")
+    FAIL = str(ROOT / "assets/fail.png")
 
 
 class GroupTab(QWidget):
@@ -29,6 +38,11 @@ class GroupTab(QWidget):
         self.is_loading = True
         self.is_adding = False
         self.is_editing = False
+
+        # 添加定时器
+        self.status_timer = QTimer(self)
+        self.status_timer.timeout.connect(self.update_status_info)
+        self.status_timer.start(2000) 
 
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -76,6 +90,19 @@ class GroupTab(QWidget):
         self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         layout.addWidget(self.table, 1)
+
+        # 状态标签
+        status_info_container = QWidget()
+        status_info_container.setContentsMargins(0, 0, 0, 0)
+        status_info_layout = QHBoxLayout()
+        status_info_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        status_info_container.setLayout(status_info_layout)
+        self.status_info_icon = QLabel()
+        self.status_info_text = QLabel()
+        status_info_layout.addWidget(self.status_info_icon)
+        status_info_layout.addWidget(self.status_info_text)
+        self.set_status_info(IconType.WAIT, "空闲")
+        layout.addWidget(status_info_container)
 
         self.setLayout(layout)
 
@@ -128,7 +155,38 @@ class GroupTab(QWidget):
             parent = parent.parent()
         return None
 
+    def set_status_info(self, icon_type: IconType, text: str):
+
+        self.status_info_icon.clear()
+        self.status_info_text.setText("")
+
+        if icon_type:
+            if icon_type.value.endswith(".gif"):
+                movie = QMovie(icon_type.value)
+                movie.setScaledSize(QSize(20, 20))
+                movie.start()
+                self.status_info_icon.setMovie(movie)
+            else:
+                self.status_info_icon.setPixmap(QIcon(icon_type.value).pixmap(QSize(20, 20)))
+        if text:
+            self.status_info_text.setText(text)
+
+    def update_status_info(self):
+        if self.is_loading:
+            self.set_status_info(IconType.LOADING, "等待中...")
+            return
+
+        row = self.group.current_backend
+        if isinstance(row, int) and row >= 0:
+            url = self.table.item(row, 1).text()
+            local_url = join_url(f'http://0.0.0.0:{self.port}', self.group.path)
+            comment = f'{local_url} -> {url}'
+            self.set_status_info(IconType.SUCCESS, comment)
+        else:
+            self.set_status_info(IconType.WAIT, "空闲")
+
     def add_backend(self):
+        self.is_loading = True
         self.is_adding = True
         self.set_window_title()
 
@@ -163,6 +221,8 @@ class GroupTab(QWidget):
         self.table.setCurrentCell(row_count, 0)
 
         self.update_test_all_btn()
+
+        self.is_loading = False
 
     def delete_backend(self):
         current_row = self.table.currentRow()
@@ -211,11 +271,13 @@ class GroupTab(QWidget):
 
     @asyncSlot()
     async def enable_backend(self, widget: QPushButton = None):
+        self.is_loading = True
         current_row = self.get_widget_row(widget.parent())
         if current_row < 0:
             return
 
         is_healthy = await self.test_backend(row=current_row, widget=widget)
+        self.is_loading = False
 
         if is_healthy:
             self.group.current_backend = current_row

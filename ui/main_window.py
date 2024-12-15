@@ -1,3 +1,5 @@
+import sys
+from pathlib import Path
 from typing import List
 from PyQt6.QtWidgets import (
     QMainWindow,
@@ -17,7 +19,7 @@ from proxy.base import ProxyServer
 from models.base import Group, Proxy
 from ui.custom_tab import CustomTabBar
 from ui.tab_content import GroupTab
-from utils.base import get_app_info
+from utils.base import get_app_info, ROOT
 from utils.config import ConfigManager
 
 
@@ -114,8 +116,6 @@ class MainWindow(QMainWindow):
         self.tab_widget.tabCloseRequested.connect(self.close_tab)
         self.tab_widget.tabBar().setExpanding(True)
 
-        
-        
         # 加载已有配置
         self.load_groups()
     

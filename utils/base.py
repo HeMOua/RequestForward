@@ -1,4 +1,5 @@
 import logging
+import sys
 
 import yaml
 from pathlib import Path
@@ -6,7 +7,11 @@ from urllib.parse import urljoin
 
 from utils.settings import TITLE, VERSION, AUTHOR
 
-ROOT = Path(__file__).parents[1]
+
+if getattr(sys, 'frozen', None):
+    ROOT = Path(sys._MEIPASS)
+else:
+    ROOT = Path(__file__).parents[1]
 
 
 def load_yaml(file_path: Path):

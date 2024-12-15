@@ -1,8 +1,9 @@
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QSize, QEvent
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QTabWidget, QTabBar, QWidget, QVBoxLayout, QLabel, QPushButton
 )
+
 
 class CustomTabBar(QTabBar):
     def __init__(self):
@@ -11,47 +12,40 @@ class CustomTabBar(QTabBar):
         self.setMovable(True)
         self.setStyleSheet("""
             QTabBar::tab {
-                width: 100px;  /* 默认宽度，确保所有 Tab 平分 */
                 height: 30px;
-                padding: 5px;
-            }
-            QTabBar::tab:selected {
-                background: lightblue; /* 选中 Tab 背景 */
-            }
-            QTabBar::tab:!selected {
-                background: lightgray; /* 未选中 Tab 背景 */
-            }
-            QTabBar::close-button {
-                image: url(); /* 默认隐藏关闭按钮 */
-                subcontrol-origin: padding;
-                subcontrol-position: right;
-            }
-            QTabBar::close-button:hover {
-                image: url(close.png); /* 鼠标悬浮时显示关闭按钮图标 */
             }
         """)
 
-    def enterEvent(self, event):
-        """鼠标进入事件：显示关闭按钮"""
-        self.setStyleSheet("""
-            QTabBar::close-button {
-                image: url(close.png); /* 替换为关闭按钮的图片路径 */
-                subcontrol-origin: padding;
-                subcontrol-position: right;
-            }
-            QTabBar::close-button:hover {
-                image: url(close_hover.png); /* 鼠标悬浮时的关闭按钮图标 */
-            }
-        """)
-        super().enterEvent(event)
-
-    def leaveEvent(self, event):
-        """鼠标离开事件：隐藏关闭按钮"""
-        self.setStyleSheet("""
-            QTabBar::close-button {
-                image: url(); /* 默认隐藏关闭按钮 */
-                subcontrol-origin: padding;
-                subcontrol-position: right;
-            }
-        """)
-        super().leaveEvent(event)
+        # self._hover_index = -1
+    #
+    # def enterEvent(self, event):
+    #     """鼠标进入事件"""
+    #     super().enterEvent(event)
+    #
+    # def leaveEvent(self, event):
+    #     """鼠标离开事件"""
+    #     # 重置所有标签页的可关闭状态
+    #     self.setTabsClosable(False)
+    #     self._hover_index = -1
+    #     super().leaveEvent(event)
+    #
+    # def mouseMoveEvent(self, event):
+    #     """鼠标移动事件"""
+    #     # 获取当前鼠标悬停的标签页索引
+    #     index = self.tabAt(event.pos())
+    #
+    #     # 如果是新的标签页
+    #     if index != self._hover_index:
+    #         # 重置所有标签页
+    #         for i in range(self.count()):
+    #             self.setTabButton(i, QTabBar.ButtonPosition.RightSide, None)
+    #
+    #         # 仅为当前悬停的标签页设置关闭按钮
+    #         if index != -1:
+    #             self.setTabsClosable(True)
+    #             self.setTabButton(index, QTabBar.ButtonPosition.RightSide,
+    #                               self.tabButton(index, QTabBar.ButtonPosition.RightSide))
+    #
+    #         self._hover_index = index
+    #
+    #     super().mouseMoveEvent(event)

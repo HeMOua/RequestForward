@@ -14,6 +14,7 @@ configparser = "^7.1.0"
 httpx = "^0.28.1"
 uvicorn = "^0.32.1"
 pyyaml = "^6.0.2"
+qasync = "^0.27.1"
 
 
 [[tool.poetry.source]]

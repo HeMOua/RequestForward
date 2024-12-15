@@ -1,42 +1,85 @@
+import logging
+
 import httpx
 import asyncio
 import uvicorn
-from typing import Dict, List
+from typing import Dict, List, Optional
 from collections import defaultdict
 from models.base import Group, Backend, Proxy
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
+from utils.base import join_url, LOGGER
+
+
+def get_current_backend(group: Group, row: int) -> Optional[str]:
+    if 0 <= row < len(group.backends):
+        return group.backends[row].url
+    return None
+
 
 class ProxyServer:
     def __init__(self, proxys: List[Proxy]):
-        self.proxys = proxys
-        self.servers = { proxy.port: proxy.groups for proxy in proxys }
+        self.servers: Dict[int, List[Group]] = { proxy.port: proxy.groups for proxy in proxys }
         self.apps = {}  # 存储每个端口对应的FastAPI实例
         
         # 为每个端口创建FastAPI实例
         for port in self.servers.keys():
-            app = FastAPI()
-            app.middleware("http")(self.proxy_middleware)
-            self.apps[port] = app
-        
-        # 启动所有服务器
-        self.start_servers()
+            self.create_server(port)
 
-    def start_servers(self):
+    def create_server(self, port: int):
+        app = FastAPI()
+        app.middleware("http")(self.proxy_middleware)
+        config = uvicorn.Config(app, host="0.0.0.0", port=port)
+        server = uvicorn.Server(config)
+        self.apps[port] = server
+        return server
+
+    async def start_servers(self):
         """启动所有端口的服务器"""
-        configs = []
-        for port, app in self.apps.items():
-            config = uvicorn.Config(app, host="0.0.0.0", port=port)
-            configs.append(config)
+        tasks = []
+        for port, server in self.apps.items():
+            task = asyncio.create_task(server.serve())
+            tasks.append(task)
         
         # 使用asyncio同时启动所有服务器
-        servers = [uvicorn.Server(config) for config in configs]
-        asyncio.run(self._start_servers(servers))
+        await asyncio.gather(*tasks)
 
-    async def _start_servers(self, servers):
-        """异步启动所有服务器"""
-        await asyncio.gather(*(server.serve() for server in servers))
+    def restart_server(self):
+        """重启代理服务器"""
+        stop_servers = [] # 将要停止的服务器
+        new_servers = [] # 将要新启动的服务器
+        
+        # 找出需要停止的服务器（在self.apps中存在但在self.servers中不存在的端口）
+        for port in self.apps.keys():
+            if port not in self.servers:
+                stop_servers.append(port)
+        
+        # 找出需要新启动的服务器（在self.servers中存在但在self.apps中不存在的端口）
+        for port in self.servers.keys():
+            if port not in self.apps:
+                # 创建新的FastAPI实例
+                self.create_server(port)
+                new_servers.append(port)
+        
+        # 停止需要停止的服务器
+        for port in stop_servers:
+            asyncio.create_task(self.stop_server(port))
+        
+        # 启动新的服务器
+        for port in new_servers:
+            server = self.create_server(port)
+            asyncio.create_task(server.serve())
+
+    async def stop_server(self, port: int):
+        """关闭指定端口的服务器"""
+        if port in self.apps:
+            server = self.apps[port]
+            # 关闭所有连接
+            await server.shutdown()
+            # 从字典中移除
+            del self.apps[port]
+            LOGGER.info(f"停止端口 {port} 的服务器")
 
     async def proxy_middleware(self, request: Request, call_next):
         # 获取当前端口对应的组
@@ -52,13 +95,19 @@ class ProxyServer:
             if path.startswith(group.path):
                 target_group = group
                 break
-        
-        if not target_group or not target_group.current_backend:
+
+        try:
+            port = int(target_group.current_backend)
+        except:
+            return JSONResponse(content={"error": '无可用或未启用后端服务'}, status_code=503)
+
+        url = get_current_backend(target_group, port)
+        if not target_group or not url:
             return await call_next(request)
             
         # 构建目标URL
         target_path = path[len(target_group.path):]  # 移除组路径前缀
-        target_url = f"{target_group.current_backend}{target_path}"
+        target_url = join_url(url, target_path)
         
         # 转发请求
         async with httpx.AsyncClient() as client:
@@ -76,28 +125,25 @@ class ProxyServer:
                     status_code=response.status_code,
                     headers=dict(response.headers)
                 )
+            except ConnectionError as e:
+                return JSONResponse(content={"error": '目标服务器未运行或不可用'}, status_code=503)
             except Exception as e:
                 return JSONResponse(content={"error": str(e)}, status_code=500)
 
     async def select_healthy_backend(self, group: Group):
         """选择一个健康的后端服务"""
-        for backend in group.backends:
-            if await self.check_backend_health(backend, group.health_check_path):
-                self.group_backends[group.path] = backend
+        for idx, backend in enumerate(group.backends):
+            if await self.check_backend_health(backend.url):
+                group.current_backend = idx
                 return True
         return False
 
-    async def check_backend_health(self, backend: Backend, health_check_path: str) -> bool:
-        """检查后端健康状态"""
-        if self.backend_health[backend.url]:
-            return True
-            
+    @classmethod
+    async def check_backend_health(cls, url: str) -> bool:
+        """检查后端健康状态"""     
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.get(f"{backend.url}{health_check_path}", timeout=5.0)
-                is_healthy = response.status_code == 200
-                self.backend_health[backend.url] = is_healthy
-                return is_healthy
+                await client.get(url, timeout=2.0)
+                return True
         except:
-            self.backend_health[backend.url] = False
             return False

@@ -10,7 +10,7 @@ class Backend(BaseModel):
 class Group(BaseModel):
     path: str
     alias: Optional[str] = None
-    current_backend: Optional[str] = None
+    current_backend: Optional[int] = None
     backends: List[Backend] = None
 
 

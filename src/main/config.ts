@@ -9,6 +9,6 @@ export const appConfig = {
 }
 
 export const mainWindowConfig = {
-  minWidth: 1000,
-  minHeight: 700
+  minWidth: 500,
+  minHeight: 400
 }

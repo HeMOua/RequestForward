@@ -63,7 +63,8 @@ export const initLogger = (logsPath: string) => {
   if (process.env.NODE_ENV !== 'production') {
     logger.add(
       new winston.transports.Console({
-        level: 'debug'
+        level: 'debug',
+        format: customFormat
       })
     )
   }

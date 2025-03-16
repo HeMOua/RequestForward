@@ -1,7 +1,7 @@
 interface BaseEntity {
   id: number
-  create_time: string
-  update_time: string
+  createTime: string
+  updateTime: string
   comment?: string
 }
 
@@ -25,7 +25,7 @@ interface Group extends BaseEntity {
   port: number
   status: number
   refresh: boolean
-  refresh_interval: number
+  refreshInterval: number
 }
 
 interface CreateGroupDto {
@@ -35,7 +35,7 @@ interface CreateGroupDto {
   port: number
   status: number
   refresh?: boolean
-  refresh_interval?: number
+  refreshInterval?: number
   comment?: string
 }
 
@@ -50,7 +50,7 @@ interface CreateServiceDto {
   name: string
   address: string
   port: number
-  group_id: number
+  groupId: number
   comment?: string
 }
 

@@ -62,7 +62,7 @@ export class ProxyService extends EventEmitter {
     })
 
     // 如果配置了自动刷新，启动健康检查
-    if (group.refresh && group.refresh_interval > 0) {
+    if (group.refresh && group.refreshInterval > 0) {
       this.startHealthCheck(group)
     }
   }
@@ -155,7 +155,7 @@ export class ProxyService extends EventEmitter {
           serviceId: proxy.service.id
         })
       }
-    }, group.refresh_interval * 1000)
+    }, group.refreshInterval * 1000)
 
     this.checkIntervals.set(group.id, interval)
   }

@@ -7,6 +7,16 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AAvatar: typeof import('ant-design-vue/es')['Avatar']
+    AButton: typeof import('ant-design-vue/es')['Button']
+    ACol: typeof import('ant-design-vue/es')['Col']
+    ADescriptions: typeof import('ant-design-vue/es')['Descriptions']
+    ADescriptionsItem: typeof import('ant-design-vue/es')['DescriptionsItem']
+    AEmpty: typeof import('ant-design-vue/es')['Empty']
+    AForm: typeof import('ant-design-vue/es')['Form']
+    AFormItem: typeof import('ant-design-vue/es')['FormItem']
+    AInput: typeof import('ant-design-vue/es')['Input']
+    AInputNumber: typeof import('ant-design-vue/es')['InputNumber']
     ALayout: typeof import('ant-design-vue/es')['Layout']
     ALayoutContent: typeof import('ant-design-vue/es')['LayoutContent']
     ALayoutFooter: typeof import('ant-design-vue/es')['LayoutFooter']
@@ -14,8 +24,18 @@ declare module 'vue' {
     ALayoutSider: typeof import('ant-design-vue/es')['LayoutSider']
     AMenu: typeof import('ant-design-vue/es')['Menu']
     AMenuItem: typeof import('ant-design-vue/es')['MenuItem']
-    ASpace: typeof import('ant-design-vue/es')['Space']
-    ASubMenu: typeof import('ant-design-vue/es')['SubMenu']
-    Versions: typeof import('./src/components/Versions.vue')['default']
+    AModal: typeof import('ant-design-vue/es')['Modal']
+    ARow: typeof import('ant-design-vue/es')['Row']
+    ASwitch: typeof import('ant-design-vue/es')['Switch']
+    ATextarea: typeof import('ant-design-vue/es')['Textarea']
+    ATooltip: typeof import('ant-design-vue/es')['Tooltip']
+    ATypographyText: typeof import('ant-design-vue/es')['TypographyText']
+    ATypographyTitle: typeof import('ant-design-vue/es')['TypographyTitle']
+    CreateGroupDialog: typeof import('./src/components/GroupPage/CreateGroupDialog/CreateGroupDialog.vue')['default']
+    GroupPage: typeof import('./src/components/GroupPage/GroupPage.vue')['default']
+    MenuTag: typeof import('./src/components/MenuTag/MenuTag.vue')['default']
+    QuestionTooltip: typeof import('./src/components/QuestionTooltip/QuestionTooltip.vue')['default']
+    TextAvatar: typeof import('./src/components/TextAvatar/TextAvatar.vue')['default']
+    Versions: typeof import('./src/components/Versions/Versions.vue')['default']
   }
 }

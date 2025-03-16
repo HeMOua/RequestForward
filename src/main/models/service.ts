@@ -11,7 +11,7 @@ export class ServiceModel extends BaseModel {
         group_id, comment
       ) VALUES (?, ?, ?, ?, ?)
     `
-    const params = [data.name, data.address, data.port, data.group_id, data.comment]
+    const params = [data.name, data.address, data.port, data.groupId, data.comment]
     return this.run(sql, params)
   }
 
@@ -28,10 +28,12 @@ export class ServiceModel extends BaseModel {
   }
 
   async update(id: number, data: Partial<CreateServiceDto>): Promise<number> {
+    const dbData = this.camelToSnake(data)
+
     const fields: string[] = []
     const values: any[] = []
 
-    for (const [key, value] of Object.entries(data)) {
+    for (const [key, value] of Object.entries(dbData)) {
       if (value !== undefined) {
         fields.push(`${key} = ?`)
         values.push(value)

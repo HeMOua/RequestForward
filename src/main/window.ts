@@ -31,7 +31,7 @@ export function createWindow(store: Record<string, any>, logger: Logger): void {
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url).then(() => {
-      logger.info('Open external URL:', details.url)
+      logger.info(`Open external URL: ${details.url}`)
     })
     return { action: 'deny' }
   })
@@ -56,11 +56,11 @@ export function createWindow(store: Record<string, any>, logger: Logger): void {
   // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']).then(() => {
-      logger.info('Main window loaded remote URL:', process.env['ELECTRON_RENDERER_URL'])
+      logger.info(`Main window loaded remote URL: ${process.env['ELECTRON_RENDERER_URL']}`)
     })
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html')).then(() => {
-      logger.info('Main window loaded local file:', join(__dirname, '../renderer/index.html'))
+      logger.info(`Main window loaded local file: ${join(__dirname, '../renderer/index.html')}`)
     })
   }
 }

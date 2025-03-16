@@ -16,7 +16,7 @@ export class GroupModel extends BaseModel {
       data.address,
       data.port,
       data.refresh ?? false,
-      data.refresh_interval ?? 300,
+      data.refreshInterval ?? 300,
       data.comment
     ]
     return this.run(sql, params)
@@ -31,10 +31,12 @@ export class GroupModel extends BaseModel {
   }
 
   async update(id: number, data: Partial<CreateGroupDto>): Promise<number> {
+    const dbData = this.camelToSnake(data)
+
     const fields: string[] = []
     const values: any[] = []
 
-    for (const [key, value] of Object.entries(data)) {
+    for (const [key, value] of Object.entries(dbData)) {
       if (value !== undefined) {
         fields.push(`${key} = ?`)
         values.push(value)

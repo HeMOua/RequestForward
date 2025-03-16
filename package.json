@@ -23,6 +23,7 @@
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.0",
     "@electron-toolkit/utils": "^3.0.0",
+    "@vueuse/core": "^12.5.0",
     "ant-design-vue": "4.x",
     "electron-store": "^10.0.1",
     "electron-updater": "^6.1.7",

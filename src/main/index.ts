@@ -4,12 +4,16 @@ import { createWindow } from './window'
 import { initStore } from './utils/store'
 import { appConfig } from './config'
 import { initLogger } from './utils/logger'
+import { initAppFunction } from './function'
 
 // 初始化仓库
 const store = initStore()
 
 // 初始化日志记录器
 const logger = initLogger(appConfig.logsPath)
+
+// 初始化应用程序功能
+initAppFunction(logger)
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.

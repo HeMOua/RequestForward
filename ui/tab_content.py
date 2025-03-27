@@ -1,4 +1,6 @@
 import enum
+import asyncio
+from functools import partial
 
 from PyQt6.QtWidgets import (
     QMainWindow,
@@ -12,7 +14,6 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QColor, QBrush, QIcon, QMovie
 from PyQt6.QtCore import Qt, QMetaObject, QTimer, QSize
-import asyncio
 from qasync import asyncSlot
 from models.base import Backend, Group
 from proxy.base import ProxyServer
@@ -38,11 +39,12 @@ class GroupTab(QWidget):
         self.is_loading = True
         self.is_adding = False
         self.is_editing = False
+        self.testing_rows = set()  # 用于跟踪当前正在测试的行
 
         # 添加定时器
         self.status_timer = QTimer(self)
         self.status_timer.timeout.connect(self.update_status_info)
-        self.status_timer.start(2000) 
+        self.status_timer.start(2000)
 
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -137,10 +139,10 @@ class GroupTab(QWidget):
             widget = QWidget()
             layout = QHBoxLayout()
             test_btn = QPushButton("测试")
-            test_btn.clicked.connect(lambda: self.test_backend(widget=self.sender()))
+            test_btn.clicked.connect(lambda checked, row=row_count: self.test_backend_clicked(row))
             layout.addWidget(test_btn)
             enable_btn = QPushButton("启用")
-            enable_btn.clicked.connect(lambda: self.enable_backend(self.sender()))
+            enable_btn.clicked.connect(lambda checked, row=row_count: self.enable_backend_clicked(row))
             layout.addWidget(enable_btn)
             layout.setContentsMargins(0, 0, 0, 0)
             widget.setLayout(layout)
@@ -156,7 +158,6 @@ class GroupTab(QWidget):
         return None
 
     def set_status_info(self, icon_type: IconType, text: str):
-
         self.status_info_icon.clear()
         self.status_info_text.setText("")
 
@@ -197,10 +198,10 @@ class GroupTab(QWidget):
         widget = QWidget()
         layout = QHBoxLayout()
         test_btn = QPushButton("测试")
-        test_btn.clicked.connect(lambda: self.test_backend(widget=self.sender()))
+        test_btn.clicked.connect(lambda checked, row=row_count: self.test_backend_clicked(row))
         layout.addWidget(test_btn)
         enable_btn = QPushButton("启用")
-        enable_btn.clicked.connect(lambda: self.enable_backend(self.sender()))
+        enable_btn.clicked.connect(lambda checked, row=row_count: self.enable_backend_clicked(row))
         layout.addWidget(enable_btn)
         layout.setContentsMargins(0, 0, 0, 0)
         widget.setLayout(layout)
@@ -238,54 +239,99 @@ class GroupTab(QWidget):
 
                 self.update_test_all_btn()
 
-    def get_widget_row(self, widget):
-        # 获取指定 widget 所在的行
-        for row in range(self.table.rowCount()):
-            cell_widget = self.table.cellWidget(row, 3)
-            if cell_widget == widget:
-                return row
-        return -1
+    def set_row_testing_status(self, row, is_testing=True):
+        if row < 0 or row >= self.table.rowCount():
+            return
+
+        if is_testing:
+            # 设置为测试中状态
+            self.testing_rows.add(row)
+            item = self.table.item(row, 2)
+            item.setText("测试中...")
+            item.setForeground(QColor("blue"))
+
+            # 设置GIF动画状态
+            movie = QMovie(IconType.LOADING.value)
+            movie.setScaledSize(QSize(16, 16))
+            movie.start()
+
+            # 创建一个QLabel来显示GIF
+            label = QLabel()
+            label.setMovie(movie)
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            # 将QLabel放入单元格
+            self.table.setCellWidget(row, 2, label)
+        else:
+            # 移除测试中状态
+            if row in self.testing_rows:
+                self.testing_rows.remove(row)
+            # 移除GIF动画
+            self.table.removeCellWidget(row, 2)
+
+    def test_backend_clicked(self, row):
+        asyncio.create_task(self.test_backend(row))
+
+    def enable_backend_clicked(self, row):
+        asyncio.create_task(self.enable_backend(row))
 
     @asyncSlot()
-    async def test_backend(self, row=None, widget: QPushButton = None):
-        if row is None:
-            row = self.get_widget_row(widget.parent())
-            if row == -1:
-                return
+    async def test_backend(self, row):
+        if row < 0 or row >= self.table.rowCount():
+            return False
 
         url = self.table.item(row, 1).text()
         if not url:
-            return
+            return False
 
-        is_healthy = await self.proxy_server.check_backend_health(url)
-        status = "正常" if is_healthy else "异常"
+        # 设置为测试中状态
+        self.set_row_testing_status(row, True)
 
-        item = self.table.item(row, 2)
-        item.setText(status)
-        if status == "正常":
-            item.setForeground(QColor("green"))
-        else:
+        try:
+            is_healthy = await self.proxy_server.check_backend_health(url)
+            status = "正常" if is_healthy else "异常"
+
+            # 移除测试中状态
+            self.set_row_testing_status(row, False)
+
+            # 更新状态
+            item = self.table.item(row, 2)
+            item.setText(status)
+            if status == "正常":
+                item.setForeground(QColor("green"))
+            else:
+                item.setForeground(QColor("red"))
+
+            return is_healthy
+        except Exception as e:
+            # 发生异常时也要移除测试中状态
+            self.set_row_testing_status(row, False)
+
+            item = self.table.item(row, 2)
+            item.setText("异常")
             item.setForeground(QColor("red"))
 
-        return is_healthy
+            return False
 
     @asyncSlot()
-    async def enable_backend(self, widget: QPushButton = None):
-        self.is_loading = True
-        current_row = self.get_widget_row(widget.parent())
-        if current_row < 0:
+    async def enable_backend(self, row):
+        if row < 0 or row >= self.table.rowCount():
             return
 
-        is_healthy = await self.test_backend(row=current_row, widget=widget)
+        self.is_loading = True
+
+        # 先测试当前后端健康状态
+        is_healthy = await self.test_backend(row)
         self.is_loading = False
 
         if is_healthy:
-            self.group.current_backend = current_row
+            self.group.current_backend = row
             self._set_row_color()
             self.save_backends()
         else:
             self.group.current_backend = -1
             self._set_row_color()
+
             def run_in_ui_thread():
                 QMessageBox.warning(
                     self,
@@ -293,12 +339,26 @@ class GroupTab(QWidget):
                     "当前后端服务异常，无法启用！",
                     QMessageBox.StandardButton.Ok
                 )
+
             QTimer.singleShot(0, run_in_ui_thread)
 
     @asyncSlot()
     async def test_all_backends(self):
+        # 禁用测试全部按钮，防止重复点击
+        self.test_all_btn.setEnabled(False)
+
+        # 获取所有需要测试的行
+        tasks = []
         for row in range(self.table.rowCount()):
-            await self.test_backend(row)
+            # 为每一行创建测试任务
+            tasks.append(self.test_backend(row))
+
+        # 并发执行所有测试任务
+        if tasks:
+            await asyncio.gather(*tasks)
+
+        # 测试完成后重新启用按钮
+        self.test_all_btn.setEnabled(True)
 
     def save_backends(self):
         self.group.backends = []
@@ -342,7 +402,7 @@ class GroupTab(QWidget):
     def update_test_all_btn(self):
         self.test_all_btn.setEnabled(self.table.rowCount() > 0)
 
-    def cell_double_clicked(self, item: QTableWidgetItem):
+    def cell_double_clicked(self, row, col):
         self.is_editing = True
         self.set_window_title()
 

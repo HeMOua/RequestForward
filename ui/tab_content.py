@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
-    QMessageBox, QLabel
+    QMessageBox, QLabel, QStyledItemDelegate
 )
 from PyQt6.QtGui import QColor, QBrush, QIcon, QMovie
 from PyQt6.QtCore import Qt, QMetaObject, QTimer, QSize
@@ -26,6 +26,14 @@ class IconType(str, enum.Enum):
     WAIT = str(ROOT / "assets/wait.png")
     LOADING = str(ROOT / "assets/loading.gif")
     FAIL = str(ROOT / "assets/fail.png")
+
+
+class RowColorDelegate(QStyledItemDelegate):
+    def paint(self, painter, option, index):
+        # 获取该行第一个单元格的 UserRole 数据
+        if index.siblingAtColumn(0).data(Qt.ItemDataRole.UserRole) == "current-backend":
+            painter.fillRect(option.rect, QColor("lightgreen"))  # 浅蓝色
+        super().paint(painter, option, index)
 
 
 class GroupTab(QWidget):
@@ -73,6 +81,14 @@ class GroupTab(QWidget):
         self.table = QTableWidget()
         self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels(["别名", "接口路径", "状态", "操作"])
+        self.table.setItemDelegate(RowColorDelegate())
+        # 设置表格样式，移除选中行的背景色
+        # self.table.setStyleSheet("""
+        #     QTableWidget::item:selected {
+        #         background: gray;
+        #         color: black;
+        #     }
+        # """)
 
         # 添加焦点变化信号连接
         self.table.itemSelectionChanged.connect(self.on_selection_change)
@@ -139,10 +155,10 @@ class GroupTab(QWidget):
             widget = QWidget()
             layout = QHBoxLayout()
             test_btn = QPushButton("测试")
-            test_btn.clicked.connect(lambda checked, row=row_count: self.test_backend_clicked(row))
+            test_btn.clicked.connect(lambda checked, row=row_count: self.test_backend(row))
             layout.addWidget(test_btn)
             enable_btn = QPushButton("启用")
-            enable_btn.clicked.connect(lambda checked, row=row_count: self.enable_backend_clicked(row))
+            enable_btn.clicked.connect(lambda checked, row=row_count: self.enable_backend(row))
             layout.addWidget(enable_btn)
             layout.setContentsMargins(0, 0, 0, 0)
             widget.setLayout(layout)
@@ -198,10 +214,10 @@ class GroupTab(QWidget):
         widget = QWidget()
         layout = QHBoxLayout()
         test_btn = QPushButton("测试")
-        test_btn.clicked.connect(lambda checked, row=row_count: self.test_backend_clicked(row))
+        test_btn.clicked.connect(lambda checked, row=row_count: self.test_backend(row))
         layout.addWidget(test_btn)
         enable_btn = QPushButton("启用")
-        enable_btn.clicked.connect(lambda checked, row=row_count: self.enable_backend_clicked(row))
+        enable_btn.clicked.connect(lambda checked, row=row_count: self.enable_backend(row))
         layout.addWidget(enable_btn)
         layout.setContentsMargins(0, 0, 0, 0)
         widget.setLayout(layout)
@@ -268,12 +284,6 @@ class GroupTab(QWidget):
                 self.testing_rows.remove(row)
             # 移除GIF动画
             self.table.removeCellWidget(row, 2)
-
-    def test_backend_clicked(self, row):
-        asyncio.create_task(self.test_backend(row))
-
-    def enable_backend_clicked(self, row):
-        asyncio.create_task(self.enable_backend(row))
 
     @asyncSlot()
     async def test_backend(self, row):
@@ -386,18 +396,21 @@ class GroupTab(QWidget):
             self.main_window.setWindowTitle(title)
 
     def _set_row_color(self):
-        """设置指定行的背景颜色"""
+        """设置指定行的背景颜色和文本样式"""
         for row in range(self.table.rowCount()):
             for col in range(self.table.columnCount()):
                 item = self.table.item(row, col)
                 if item:
+                    # 设置当前后端行的背景色
                     if row == self.group.current_backend:
-                        item.setBackground(QBrush(QColor("lightgreen")))
+                        item.setData(Qt.ItemDataRole.UserRole, "current-backend")
                     else:
-                        item.setBackground(QBrush(QColor("white")))
+                        item.setData(Qt.ItemDataRole.UserRole, None)
 
     def on_selection_change(self):
+        """处理选择变化事件"""
         self.delete_btn.setEnabled(len(self.table.selectedItems()) > 0)
+        self._set_row_color()  # 更新选中行的样式
 
     def update_test_all_btn(self):
         self.test_all_btn.setEnabled(self.table.rowCount() > 0)

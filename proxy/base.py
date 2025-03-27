@@ -125,7 +125,8 @@ class ProxyServer:
                     url=target_url,
                     headers=dict(request.headers),
                     params=dict(request.query_params),
-                    content=await request.body()
+                    content=await request.body(),
+                    timeout=None
                 )
                 
                 return StreamingResponse(
